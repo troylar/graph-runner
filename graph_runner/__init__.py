@@ -6,9 +6,9 @@ class GraphRunner:
     def property_exists(self, **kwargs):
         node_id = kwargs.get('Id')
         property = kwargs.get('Property')
+        prop = self.g.V(node_id).properties().toList()
         prop = self.g.V(node_id).properties(property).toList()
         return len(prop), len(prop) > 0
-
 
     def exec(self, **kwargs):
         node_id = kwargs.get('Id')

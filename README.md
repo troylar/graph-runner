@@ -24,6 +24,7 @@ graph = Graph()
 
 class Entity(GraphEntity):
      def __init__(self, *args, **kwargs):
+		 # you must explicitly define the code properties
          kwargs['ExecProperties']=['ignore_if', 'action', 'next_node']
          super().__init__(*args, **kwargs)
 

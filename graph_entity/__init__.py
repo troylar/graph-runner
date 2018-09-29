@@ -1,26 +1,43 @@
 from graph_runner import GraphRunner
+from gremlin_python.process.traversal import T
+import importlib
+import uuid
 
 class GraphEntity:
     def __init__(self, **kwargs):
         self.g = kwargs.get('Traversal')
         self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self)
-        self.entity_id = kwargs.get('Id')
+        self.id = kwargs.get('Id')
         self.exec_properties = kwargs.get('ExecProperties')
-        self.type = kwargs.get('Type', 'vertex')
+
+    def full_self(self):
+        return type(self).__module__ + "." + self.__class__.__qualname__
 
     def __getattribute__(self, name):
-        if name in['property', 'g', 'update_code', 'entity_id', 'gr', 'type', 'exec_properties']:
+        if name.startswith('__') or \
+            name in['from_node', 'add_node', 'full_self', 'get_property', 'g', 'update_code', 'id', 'gr', 'type', 'exec_properties']:
             return super().__getattribute__(name)
         if name in self.exec_properties:
-            return self.gr.exec(Id=self.entity_id, Property=name)
+            return self.gr.exec(Id=self.id, Property=name)
 
     def update_code(self, **kwargs):
-        id = kwargs.get('Id')
+        id = kwargs.get('Id', self.id)
         code = kwargs.get('Code')
         property = kwargs.get('Property')
         if self.gr.property_exists(Id=id, Property=property)[1]:
             self.g.V(id).properties(property).drop().iterate()
         self.g.V(id).property(property, code).next()
 
-    def node(self, node):
-        self.active_node = node
+    def from_node(self, id):
+        if self.gr.property_exists(Id=id, Property='gr_type')[1]:
+            module_name, class_name = self.get_property('gr_type', id).rsplit(".",1)
+            cls = getattr(importlib.import_module(module_name), class_name)
+            return cls(Id=id, Traversal=self.g)
+
+    def add_node(self):
+        self.id = str(uuid.uuid4())
+        return self.g.addV().property(T.id, self.id).property('gr_type', self.full_self())
+
+    def get_property(self, name, id):
+        if self.gr.property_exists(Id=id, Property=name)[1]:
+            return self.g.V(id).valueMap(False).toList()[0][name][0]
