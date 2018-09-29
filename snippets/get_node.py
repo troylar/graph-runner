@@ -12,7 +12,7 @@ else:
 """
 graph = Graph()
 
-g = graph.traversal().withRemote(DriverRemoteConnection('ws://pollexy.cpnsd60aij0a.us-east-1.neptune.amazonaws.com:8182/gremlin','g'))
+g = graph.traversal().withRemote(DriverRemoteConnection('ws://endpoint:8182/gremlin','g'))
 print(g.V('calvin').properties('id')[0].toList())
 
 #gn = GraphEntity(Traversal=g)
