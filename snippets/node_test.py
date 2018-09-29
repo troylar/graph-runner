@@ -14,9 +14,9 @@ else:
 """
 graph = Graph()
 
-g = graph.traversal().withRemote(DriverRemoteConnection('ws://pollexy.cpnsd60aij0a.us-east-1.neptune.amazonaws.com:8182/gremlin','g'))
+g = graph.traversal().withRemote(DriverRemoteConnection('ws://endpoint:8182/gremlin','g'))
 
-# Step 1: We're going to add an entity to the graph
+# We're going to add an entity to the graph
 first_event = EventEntity(Traversal=g)
 print('Adding node')
 
@@ -71,4 +71,3 @@ print(first_event.next_node)
 # change is_present to false, and the next_node is N/A
 pe.update_code(Property='is_present', Code='exec_val=False')
 print(first_event.next_node)
-
