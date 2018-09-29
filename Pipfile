@@ -8,6 +8,8 @@ pytest = "*"
 gremlinpython = "*"
 "zest.releaser" = "*"
 setuptools-git = "*"
+twine = "*"
+graph-runner = {editable = true, path = "."}
 
 [dev-packages]
 
