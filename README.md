@@ -7,7 +7,7 @@ To install `graph-runner`:
 
     pip install graph-runner
 
-While there's no full documentation yet, here's a code sample that walks you through the majority of the current features.
+While there's no full documentation yet, here's a code sample that walks you through the majority of the current features. Make sure that you export a CONN_STR environment variable that matches your connections string.
 
 The only code this does not show is the [https://github.com/troylar/graph-runner/blob/master/entities/__init__.py](https://github.com/troylar/graph-runner/blob/master/entities/__init__.py "custom entities"). Each custom entity maps to a node type. You simply have to define the `exec_properties` in the class definition, which define which properties that contain executable code.
 
