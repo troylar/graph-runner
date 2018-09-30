@@ -1,4 +1,4 @@
-# Graph Runner
+# Graph Runner (ALPHA)
 ## Overview
 `graph-runner` provides a way to add actual Python code to Graph DB nodes, which can be used to create real-time dynamically property values. Rather than only storing fixed values, you have the option to create rich property values that can be calculated on-the-fly with other vertex property values.
 
@@ -7,7 +7,9 @@ To install `graph-runner`:
 
     pip install graph-runner
 
-Here's a sample code that assumes you have `node1` and `node2` nodes:
+While there's no full documentation yet, here's a code sample that walks you through the majority of the current features.
+
+The only code this does not show is the [https://github.com/troylar/graph-runner/blob/master/entities/__init__.py](https://github.com/troylar/graph-runner/blob/master/entities/__init__.py "custom entities"). Each custom entity maps to a node type. You simply have to define the `exec_properties` in the class definition, which define which properties that contain executable code.
 
 ```python
 from gremlin_python import statics

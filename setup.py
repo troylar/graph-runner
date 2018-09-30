@@ -16,7 +16,7 @@ setuptools.setup(
     install_requires=["gremlinpython"],
     long_description_content_type="text/markdown",
     url="https://github.com/troylar/graph-runner",
-    packages=["graph_runner", "graph_entity"],
+    packages=["graph_runner", "graph_entity", 'entities', 'snippets'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
