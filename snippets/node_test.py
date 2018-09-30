@@ -83,7 +83,7 @@ else:
     exec_val = "N/A"
 """
 
-# run the same code, but call
+# run the same code, but pass ids at run-time
 first_event.next_node = next_node_template
 pe.is_present = 'True'
 print(first_event.next_node(Data={'person_node_id': pe.id, 'next_node_id': second_event.id}))
