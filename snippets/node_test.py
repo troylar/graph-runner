@@ -5,6 +5,7 @@ from gremlin_python.process.strategies import *
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from graph_entity import GraphEntity
 from entities import EventEntity, PersonEntity
+import os
 
 if_code = """
 if this_entity.ignore_if:
@@ -14,7 +15,7 @@ else:
 """
 graph = Graph()
 
-g = graph.traversal().withRemote(DriverRemoteConnection('ws://endpoint:8182/gremlin','g'))
+g = graph.traversal().withRemote(DriverRemoteConnection(os.environ.get('CONN_STR'),'g'))
 
 # We're going to add an entity to the graph
 first_event = EventEntity(Traversal=g)
@@ -65,7 +66,8 @@ else:
 """.format(pe.id, second_event.id)
 
 # because is_present is true, we get our next node
-first_event.update_code(Property='next_node', Code=next_node_code)
+# first_event.update_code(Property='next_node', Code=next_node_code)
+first_event.next_node = next_node_code
 print(first_event.next_node)
 
 # change is_present to false, and the next_node is N/A
