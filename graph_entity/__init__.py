@@ -31,7 +31,6 @@ class GraphEntity:
 
     def __setattr__(self, name, value):
         if hasattr(self, 'exec_properties') and name in self.exec_properties:
-            print('setting ' + name)
             self.set_property(name, value)
         else:
             self.__dict__[name] = value
