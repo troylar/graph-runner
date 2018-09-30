@@ -2,7 +2,7 @@ from graph_runner import GraphRunner
 from gremlin_python.process.traversal import T
 import importlib
 import uuid
-
+from jinja2 import Environment, BaseLoader
 
 class GraphEntity:
     def __init__(self, **kwargs):
@@ -18,15 +18,20 @@ class GraphEntity:
         __dict__ = super(GraphEntity, self).__getattribute__('__dict__')
         if 'exec_properties' in __dict__ and __dict__['exec_properties'] and \
                 name in __dict__['exec_properties']:
-            value = self.get_property(name)
-            if value and 'exec_val' in value:
-                return self.gr.exec(Id=self.id, Property=name)
-            else:
-                return value
+            def exec_wrapper(*args, **kwargs):
+                kwargs['Id'] = self.id
+                kwargs['Property'] = name
+                value = self.get_property(name)
+                if 'exec_val' in value:
+                    return self.gr.exec(**kwargs)
+                else:
+                    return self.get_property(name)
+            return exec_wrapper
         return super(GraphEntity, self).__getattribute__(name)
 
     def __setattr__(self, name, value):
         if hasattr(self, 'exec_properties') and name in self.exec_properties:
+            print('setting ' + name)
             self.set_property(name, value)
         else:
             self.__dict__[name] = value

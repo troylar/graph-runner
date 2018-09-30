@@ -10,6 +10,7 @@ gremlinpython = "*"
 setuptools-git = "*"
 twine = "*"
 graph-runner = {editable = true, path = "."}
+"jinja2" = "*"
 
 [dev-packages]
 

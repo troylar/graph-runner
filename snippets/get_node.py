@@ -4,15 +4,10 @@ from gremlin_python.process.graph_traversal import __
 from gremlin_python.process.strategies import *
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from graph_entity import GraphEntity
-if_code = """
-if this_entity.ignore_if:
-    exec_val = g.V('chloe')
-else:
-    exec_val = "N/A"
 """
 graph = Graph()
 
-g = graph.traversal().withRemote(DriverRemoteConnection('ws://endpoint:8182/gremlin','g'))
+g = graph.traversal().withRemote(DriverRemoteConnection(os.environ.get('GRAPH_DB'),'g'))
 print(g.V('calvin').properties('id')[0].toList())
 
 #gn = GraphEntity(Traversal=g)
