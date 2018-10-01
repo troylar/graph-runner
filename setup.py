@@ -8,7 +8,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name="graph-runner",
-    version='0.0.11.dev0',
+    version='0.0.11',
     author="Troy Larson",
     author_email="troylar@gmail.com",
     description="Run your graphs in code",
