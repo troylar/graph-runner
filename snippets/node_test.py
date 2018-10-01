@@ -90,3 +90,12 @@ print(first_event.next_node(Data={'person_node_id': pe.id, 'next_node_id': secon
 
 pe.is_present = 'False'
 print(first_event.next_node(Data={'person_node_id': pe.id, 'next_node_id': second_event.id}))
+
+first_event.add_ruled_edge('IS_NOT_LOADED', second_event.id, 'exec_val = 1==1')
+first_event.add_ruled_edge('IS_NOT_READY', second_event.id, 'exec_val = False')
+first_event.add_ruled_edge('IS_READY', second_event.id, 'exec_val = True')
+#print(first_event.get_ruled_edge('HAS_NEXT'))
+print('All rules:\n{}'.format(first_event.get_all_rules()))
+print('Next node: {}'.format(first_event.next_node_by_rules()))
+first_event.add_ruled_edge('IS_NOT_LOADED', second_event.id, 'exec_val = False')
+print('Next node: {}'.format(first_event.next_node_by_rules()))
