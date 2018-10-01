@@ -2,6 +2,10 @@
 ## Overview
 `graph-runner` provides a way to add actual Python code to Graph DB nodes, which can be used to create real-time dynamically property values. Rather than only storing fixed values, you have the option to create rich property values that can be calculated on-the-fly with other vertex property values.
 
+> **IMPORTANT:** This codebase currently uses the `exec()` method to execute Python code. This was
+> used for sake of time since this was built for a specific trusted project. Ideally, a more secure
+> method should be used, but just be aware that arbitrary code can be executed.
+
 ## Quick Start
 To install `graph-runner`:
 
