@@ -40,6 +40,7 @@ class GraphEntity:
             self.g.V(self.id).properties(property).drop().iterate()
         self.g.V(self.id).property(property, value).next()
 
+    # TODO: Add a code sanitizer
     def update_code(self, **kwargs):
         id = kwargs.get('Id', self.id)
         code = kwargs.get('Code')

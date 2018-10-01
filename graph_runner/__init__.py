@@ -1,5 +1,6 @@
 from jinja2 import Environment, BaseLoader
 
+
 class GraphRunner:
     def __init__(self, **kwargs):
         self.g = kwargs.get('Traversal')
@@ -26,6 +27,7 @@ class GraphRunner:
             code_t = Environment(loader=BaseLoader()).from_string(code)
             code_r = code_t.render(data)
         else:
-            code_r= code
+            code_r = code
+        # TODO: Add a code sanitizer
         exec(code_r)
         return locals()['exec_val']
