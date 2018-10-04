@@ -13,7 +13,7 @@ setuptools.setup(
     author_email="troylar@gmail.com",
     description="Run your graphs in code",
     long_description=long_description,
-    install_requires=["gremlinpython", 'jinja2'],
+    install_requires=["gremlinpython", 'jinja2', 'inflection'],
     long_description_content_type="text/markdown",
     url="https://github.com/troylar/graph-runner",
     packages=["graph_runner", "graph_entity", 'entities', 'snippets'],

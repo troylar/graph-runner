@@ -1,16 +1,21 @@
 from graph_runner import GraphRunner
-from gremlin_python.process.traversal import T
 import importlib
-import uuid
-from jinja2 import Environment, BaseLoader
+import inflection
+
 
 class GraphEntity:
     def __init__(self, **kwargs):
         self.g = kwargs.get('Traversal')
         self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self)
         self.id = kwargs.get('Id')
+        self.friendly_id = kwargs.get('FriendlyId')
+        self.logger = kwargs.get('Logger')
         self.rule_order = kwargs.get('RuleOrder', {})
         self.exec_properties = kwargs.get('ExecProperties')
+        node_properties = kwargs.get('NodeProperties', {})
+        for prop in node_properties:
+            self.__dict__[prop] = node_properties[prop][0]
+        self.properties = kwargs.get('Properties') + ['friendly_id']
 
     def full_self(self):
         return type(self).__module__ + "." + self.__class__.__qualname__
@@ -50,16 +55,39 @@ class GraphEntity:
             self.g.V(id).properties(property).drop().iterate()
         self.g.V(id).property(property, code).next()
 
+    def from_node_f(self, friendly_id):
+        self.logger.debug('Loading node {}'.format(id))
+        v = self.g.V().has('friendly_id', friendly_id)
+        if v.has_next():
+            return self.from_node(v.id)
+
     def from_node(self, id):
+        self.logger.debug('Loading node {}'.format(id))
         if self.gr.property_exists(Id=id, Property='gr_type')[1]:
             module_name, class_name = self.get_property('gr_type', id).rsplit(".", 1)
+            self.logger.debug('Found node, type={}.{}'.format(module_name, class_name))
             cls = getattr(importlib.import_module(module_name), class_name)
-            return cls(Id=id, Traversal=self.g)
+            properties = self.g.V(id).valueMap(False).toList()[0]
+            self.logger.debug('Properties={}'.format(properties))
+            return cls(Id=id,
+                       Traversal=self.g,
+                       NodeProperties=properties,
+                       Logger=self.logger)
 
-    def add_node(self):
-        id = str(uuid.uuid4())
-        self.id = id
-        return self.g.addV().property(T.id, self.id).property('gr_type', self.full_self())
+    def add_node(self, **kwargs):
+        properties = kwargs.get('Properties')
+        v = self.g.addV().property('gr_type', self.full_self())
+        self.logger.debug('Creating node')
+        self.logger.debug('Expected Properties: {}'.format(self.properties))
+        self.logger.debug('Actual Properties: {}'.format(properties))
+        for prop in self.properties:
+            prop_u = inflection.underscore(prop)
+            properties_u = {inflection.underscore(k): v for k, v in properties.items()}
+            self.logger.debug('Checking {}'.format(prop_u))
+            if prop_u in properties_u:
+                self.logger.debug('Adding property {}:{}'.format(prop_u, properties_u[prop_u]))
+                v.property(prop_u, properties_u[prop_u])
+        return v
 
     def add_ruled_edge(self, name, to_id, rule):
         self.g.V(self.id).addE(name).drop().iterate()
@@ -91,7 +119,6 @@ class GraphEntity:
             result = self.gr.exec_code(Code=rules[rule])
             if result:
                 return self.g.V(self.id).outE(rule)
-
 
     def get_property(self, name, id=None):
         if id is None:

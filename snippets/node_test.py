@@ -1,7 +1,4 @@
-from gremlin_python import statics
 from gremlin_python.structure.graph import Graph
-from gremlin_python.process.graph_traversal import __
-from gremlin_python.process.strategies import *
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from graph_entity import GraphEntity
 from entities import EventEntity, PersonEntity
@@ -9,7 +6,7 @@ import os
 
 graph = Graph()
 
-g = graph.traversal().withRemote(DriverRemoteConnection(os.environ.get('CONN_STR'),'g'))
+g = graph.traversal().withRemote(DriverRemoteConnection(os.environ.get('CONN_STR'), 'g'))
 
 # We're going to add an entity to the graph
 first_event = EventEntity(Traversal=g)
