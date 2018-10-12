@@ -1,21 +1,44 @@
 from graph_runner import GraphRunner
 import importlib
-import inflection
+import time
+
+
+class GraphFactory:
+    def __init__(self, **kwargs):
+        self.g = kwargs.get('Traversal')
+        self.logger = kwargs.get('Logger')
+        self.entity_module = kwargs.get('EntityModule')
+
+    def create(self, entity_type):
+        cls = getattr(importlib.import_module(self.entity_module), entity_type)
+        return cls(Traversal=self.g, Logger=self.logger)
 
 
 class GraphEntity:
     def __init__(self, **kwargs):
         self.g = kwargs.get('Traversal')
-        self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self)
         self.id = kwargs.get('Id')
         self.friendly_id = kwargs.get('FriendlyId')
         self.logger = kwargs.get('Logger')
+        self.logger.debug('ID={}'.format(self.id))
+        self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self, Logger=self.logger)
         self.rule_order = kwargs.get('RuleOrder', {})
         self.exec_properties = kwargs.get('ExecProperties')
+        self.exec_logs = {}
+        self.events = ['on_start',
+                       'on_precheck_wait',
+                       'on_before_action',
+                       'on_after_action'
+                       'on_postcheck_wait',
+                       'on_success',
+                       'on_failure']
+        if 'events' in kwargs:
+            self.events = self.events + kwargs.get('events')
         node_properties = kwargs.get('NodeProperties', {})
         for prop in node_properties:
             self.__dict__[prop] = node_properties[prop][0]
-        self.properties = kwargs.get('Properties') + ['friendly_id']
+        self.properties = kwargs.get('Properties') + ['friendly_id', 'action']
+        self.logger.debug('exec_orperties: {}'.format(self.__dict__['exec_properties']))
 
     def full_self(self):
         return type(self).__module__ + "." + self.__class__.__qualname__
@@ -36,6 +59,8 @@ class GraphEntity:
         return super(GraphEntity, self).__getattribute__(name)
 
     def __setattr__(self, name, value):
+        if name == 'id':
+            print(value)
         if hasattr(self, 'exec_properties') and name in self.exec_properties:
             self.set_property(name, value)
         else:
@@ -58,40 +83,102 @@ class GraphEntity:
     def from_node_f(self, friendly_id):
         self.logger.debug('Loading node {}'.format(id))
         v = self.g.V().has('friendly_id', friendly_id)
+        self.logger.debug('Node: {}'.format(v))
         if v.has_next():
             return self.from_node(v.id)
 
     def from_node(self, id):
         self.logger.debug('Loading node {}'.format(id))
-        if self.gr.property_exists(Id=id, Property='gr_type')[1]:
-            module_name, class_name = self.get_property('gr_type', id).rsplit(".", 1)
-            self.logger.debug('Found node, type={}.{}'.format(module_name, class_name))
-            cls = getattr(importlib.import_module(module_name), class_name)
-            properties = self.g.V(id).valueMap(False).toList()[0]
-            self.logger.debug('Properties={}'.format(properties))
-            return cls(Id=id,
-                       Traversal=self.g,
-                       NodeProperties=properties,
-                       Logger=self.logger)
+        module_name, class_name = self.get_property('gr_type', id).rsplit(".", 1)
+        self.logger.debug('Found node, type={}.{}'.format(module_name, class_name))
+        cls = getattr(importlib.import_module(module_name), class_name)
+        properties = self.g.V(id).valueMap(False).toList()[0]
+        self.logger.debug('ID={}, Properties={}'.format(id, properties))
+        entity = cls(Id=id,
+                     Traversal=self.g,
+                     NodeProperties=properties,
+                     Logger=self.logger)
+        self.logger.debug('From node={}'.format(entity.id))
+        return entity
 
-    def add_node(self, **kwargs):
-        properties = kwargs.get('Properties')
+    def perform_action(self, **kwargs):
+        if 'action' not in self.__dict__:
+            return
+        data = kwargs.get('Data')
+        self.fire_event('on_action_before')
+        val, log = self.gr.exec_code(Code=self.action,
+                                     Entity=self,
+                                     Data=data)
+        self.with_exec_log('action', val, log)
+        self.fire_event('on_action_after')
+        return val, log
+
+    def with_exec_log(self, name, val, log):
+        if name not in self.exec_logs:
+            self.exec_logs[name] = {}
+        self.exec_logs[name]['val'] = val
+        self.exec_logs[name]['log'] = log
+        return self
+
+    def enter_step(self, id):
+        node = self.from_node(id)
+        node.fire_event('on_start')
+
+    def precheck_wait(self, timeout=30):
+        timeout = time.time() + timeout
+        if self.event_exists('on_precheck_wait'):
+            while True:
+                val, log = self.fire_event('on_precheck_wait')
+                self.logger.debug('Val = {}'.format(val))
+                if str(val) == 'True':
+                    return val, log
+                if time.time() > timeout:
+                    break
+                time.sleep(3)
+        return True, None
+
+    def event_exists(self, event):
+        return 'EVENT_{}'.format(event) in self.__dict__
+
+    def fire_event(self, event):
+        if self.event_exists(event):
+            val, log = self.gr.exec_code(Code=self.__dict__['EVENT_{}'.format(event)],
+                                         Entity=self)
+            self.with_exec_log(event, val, log)
+            return val, log
+        return None, None
+
+    def with_property(self, name, value):
+        self.__dict__[name] = value
+        return self
+
+    def without_property(self, name):
+        del self.__dict__[name]
+        return self
+
+    def with_event(self, name, value):
+        self.__dict__['EVENT_{}'.format(name)] = value
+
+    def save(self, **kwargs):
         v = self.g.addV().property('gr_type', self.full_self())
-        self.logger.debug('Creating node')
+        self.logger.debug('Creating node, gr_type={}'.format(self.full_self()))
         self.logger.debug('Expected Properties: {}'.format(self.properties))
-        self.logger.debug('Actual Properties: {}'.format(properties))
+        self.logger.debug('Actual Properties: {}'.format(self.properties))
         for prop in self.properties:
-            prop_u = inflection.underscore(prop)
-            properties_u = {inflection.underscore(k): v for k, v in properties.items()}
-            self.logger.debug('Checking {}'.format(prop_u))
-            if prop_u in properties_u:
-                self.logger.debug('Adding property {}:{}'.format(prop_u, properties_u[prop_u]))
-                v.property(prop_u, properties_u[prop_u])
-        return v
+            if prop in self.__dict__ and self.__dict__[prop]:
+                self.logger.debug('Adding property {}:{}'.format(prop, self.__dict__[prop]))
+                v.property(prop, self.__dict__[prop])
+        for k in self.__dict__:
+            if k.startswith('EVENT_'):
+                v.property(k, self.__dict__[k])
+        v = v.next()
+        self.id = v.id
 
-    def add_ruled_edge(self, name, to_id, rule):
+    def add_ruled_edge(self, name, to_id, rule=''):
+        name = name.upper()
         self.g.V(self.id).addE(name).drop().iterate()
-        self.g.V(self.id).addE(name).to(self.g.V(self.id)).property('rule', rule).next()
+        self.logger.debug('Adding ruled edge {} to {}, rule: {}'.format(to_id, self.id, rule))
+        self.g.V(self.id).addE(name).to(self.g.V(to_id)).property('rule', rule).next()
         return self.g.V(self.id)
 
     def add_edge(self, name, to_id):
@@ -112,16 +199,29 @@ class GraphEntity:
         return rules
 
     def next_node_by_rules(self):
+        self.logger.debug('Getting node by roles for {}'.format(self.id))
         rules = self.get_all_rules()
+        self.logger.debug('Rule Order: {}'.format(self.rule_order))
+        self.logger.debug('Rules: {}'.format(rules))
         for rule in self.rule_order:
             rule = rule.upper()
-            print(rules[rule])
-            result = self.gr.exec_code(Code=rules[rule])
+            if rule not in rules:
+                continue
+            rule = rule.upper()
+            # if rule exists, but not rule code, then return the node
+            if not rules[rule]:
+                self.logger.debug('Rule is empty: {}'.format(rule))
+                result = True
+            else:
+                result = self.gr.exec_code(Code=rules[rule])
+                self.logger.debug('Rule {} result: {}'.format(rule, result))
             if result:
-                return self.g.V(self.id).outE(rule)
+                v = self.g.V(self.id).outE(rule).inV().next()
+                self.logger.debug('outv: {}'.format(self.g.V(self.id).outE(rule).inV().next().id))
+                node = self.from_node(v.id)
+                self.logger.debug('Returning node: {}'.format(node))
+                return node
 
     def get_property(self, name, id=None):
-        if id is None:
-            id = self.id
-        if self.gr.property_exists(Id=id, Property=name)[1]:
-            return self.g.V(id).valueMap(False).toList()[0][name][0]
+        self.logger.debug(self.g.V(id).valueMap(False).toList())
+        return self.g.V(id).valueMap(False).toList()[0][name][0]
