@@ -19,6 +19,7 @@ class GraphRunner:
         self.g = kwargs.get('Traversal')
         self.entity = kwargs.get('Entity')
         self.logger = kwargs.get('Logger')
+        self.objects = kwargs.get('Objects')
 
     def property_exists(self, **kwargs):
         node_id = kwargs.get('Id')
@@ -34,6 +35,7 @@ class GraphRunner:
         entity = kwargs.get('Entity')
         g = self.g
         logger = self.logger
+        o = self.objects
         this_entity = self.entity
         if data:
             code_t = Environment(loader=BaseLoader()).from_string(code)
@@ -50,6 +52,7 @@ class GraphRunner:
                     val = locals()['exec_val']
                 return val, s.getvalue().strip()
             except Exception as e:
+                self.logger.error(e)
                 return None, e
 
     def exec(self, **kwargs):
