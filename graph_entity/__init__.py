@@ -23,7 +23,7 @@ class GraphEntity:
         self.logger.debug('ID={}'.format(self.id))
         self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self, Logger=self.logger)
         self.rule_order = kwargs.get('RuleOrder', {})
-        self.exec_properties = kwargs.get('ExecProperties')
+        self.exec_properties = kwargs.get('ExecProperties', [])
         self.exec_logs = {}
         self.events = ['on_start',
                        'on_precheck_wait',
@@ -37,8 +37,10 @@ class GraphEntity:
         node_properties = kwargs.get('NodeProperties', {})
         for prop in node_properties:
             self.__dict__[prop] = node_properties[prop][0]
-        self.properties = kwargs.get('Properties') + ['friendly_id', 'action']
-        self.logger.debug('exec_orperties: {}'.format(self.__dict__['exec_properties']))
+        self.properties = kwargs.get('Properties') + ['friendly_id',
+                                                      'precode',
+                                                      'action']
+        self.logger.debug('exec_properties: {}'.format(self.__dict__['exec_properties']))
 
     def full_self(self):
         return type(self).__module__ + "." + self.__class__.__qualname__
@@ -59,8 +61,6 @@ class GraphEntity:
         return super(GraphEntity, self).__getattribute__(name)
 
     def __setattr__(self, name, value):
-        if name == 'id':
-            print(value)
         if hasattr(self, 'exec_properties') and name in self.exec_properties:
             self.set_property(name, value)
         else:
@@ -82,9 +82,8 @@ class GraphEntity:
 
     def from_node_f(self, friendly_id):
         self.logger.debug('Loading node {}'.format(id))
-        v = self.g.V().has('friendly_id', friendly_id)
-        self.logger.debug('Node: {}'.format(v))
-        if v.has_next():
+        if self.node_exists_f(friendly_id):
+            v = self.g.V().has('friendly_id', friendly_id).next()
             return self.from_node(v.id)
 
     def from_node(self, id):
@@ -102,11 +101,16 @@ class GraphEntity:
         return entity
 
     def perform_action(self, **kwargs):
+        print('running action')
         if 'action' not in self.__dict__:
             return
         data = kwargs.get('Data')
         self.fire_event('on_action_before')
-        val, log = self.gr.exec_code(Code=self.action,
+        if 'precode' in self.__dict__:
+            action = '{}\n{}'.format(self.precode, self.action)
+        else:
+            action = self.action
+        val, log = self.gr.exec_code(Code=action,
                                      Entity=self,
                                      Data=data)
         self.with_exec_log('action', val, log)
@@ -174,8 +178,19 @@ class GraphEntity:
         v = v.next()
         self.id = v.id
 
-    def add_ruled_edge(self, name, to_id, rule=''):
+    def node_exists_f(self, friendly_id):
+        by_id_f = len(self.g.V().has('friendly_id', friendly_id).fold().next())
+        return by_id_f > 0
+
+    def add_ruled_edge(self, name, to_id, rule='None'):
         name = name.upper()
+        print('add ruled edge for ' + name + ' ' + str(self.id))
+        print('to_id = {}'.format(to_id))
+        if self.node_exists_f(to_id):
+            to_id = self.g.V().has('friendly_id', to_id).next().id
+        else:
+            print('No nodes found with friendly_id "{}"'.format(to_id))
+        print('to_id = {}'.format(to_id))
         self.g.V(self.id).addE(name).drop().iterate()
         self.logger.debug('Adding ruled edge {} to {}, rule: {}'.format(to_id, self.id, rule))
         self.g.V(self.id).addE(name).to(self.g.V(to_id)).property('rule', rule).next()
@@ -190,6 +205,7 @@ class GraphEntity:
         return self.g.V(self.id).outE(name)
 
     def get_all_rules(self):
+        print('get all edges for {}'.format(self.id))
         edges = self.g.V(self.id).outE().toList()
         rules = {}
         for edge in edges:
@@ -197,6 +213,14 @@ class GraphEntity:
             if rule:
                 rules[edge.label] = rule[0].value
         return rules
+
+    def wait_for_rule(self, timeout=60):
+        done = False
+        while not done:
+            n = self.next_node_by_rules()
+            if n:
+                return n
+            time.sleep(3)
 
     def next_node_by_rules(self):
         self.logger.debug('Getting node by roles for {}'.format(self.id))
@@ -209,11 +233,15 @@ class GraphEntity:
                 continue
             rule = rule.upper()
             # if rule exists, but not rule code, then return the node
-            if not rules[rule]:
+            if rules[rule] == 'None':
                 self.logger.debug('Rule is empty: {}'.format(rule))
                 result = True
             else:
-                result = self.gr.exec_code(Code=rules[rule])
+                if 'precode' in self.__dict__:
+                    code = '{}\n{}'.format(self.precode, rules[rule])
+                else:
+                    code = rules[rule]
+                result, log = self.gr.exec_code(Code=code)
                 self.logger.debug('Rule {} result: {}'.format(rule, result))
             if result:
                 v = self.g.V(self.id).outE(rule).inV().next()

@@ -28,6 +28,7 @@ class GraphRunner:
         return len(prop), len(prop) > 0
 
     def exec_code(self, **kwargs):
+        self.logger.debug('exec code')
         data = kwargs.get('Data')
         code = kwargs.get('Code')
         entity = kwargs.get('Entity')
@@ -41,16 +42,15 @@ class GraphRunner:
             code_r = code
         # TODO: Add a code sanitizer
         self.logger.debug('Executing code: {}'.format(code_r))
-        if 'exec_val' in code_r:
-            with stdoutIO() as s:
-                try:
-                    exec(code_r)
+        with stdoutIO() as s:
+            try:
+                exec(code_r)
+                val = None
+                if 'exec_val' in locals():
                     val = locals()['exec_val']
-                    return val, s.getvalue().strip()
-                except Exception as e:
-                    return None, e
-        else:
-            return code_r, None
+                return val, s.getvalue().strip()
+            except Exception as e:
+                return None, e
 
     def exec(self, **kwargs):
         node_id = kwargs.get('Id')
