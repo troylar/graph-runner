@@ -2,6 +2,7 @@ from jinja2 import Environment, BaseLoader
 import sys
 from io import StringIO
 import contextlib
+import traceback
 
 
 @contextlib.contextmanager
@@ -33,9 +34,9 @@ class GraphRunner:
         data = kwargs.get('Data')
         code = kwargs.get('Code')
         entity = kwargs.get('Entity')
+        o = self.objects
         g = self.g
         logger = self.logger
-        o = self.objects
         this_entity = self.entity
         if data:
             code_t = Environment(loader=BaseLoader()).from_string(code)
@@ -52,7 +53,8 @@ class GraphRunner:
                     val = locals()['exec_val']
                 return val, s.getvalue().strip()
             except Exception as e:
-                self.logger.error(e)
+                _traceback = traceback.format_exc()
+                self.logger.error(_traceback)
                 return None, e
 
     def exec(self, **kwargs):

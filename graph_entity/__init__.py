@@ -21,7 +21,11 @@ class GraphEntity:
         self.friendly_id = kwargs.get('FriendlyId')
         self.logger = kwargs.get('Logger')
         self.logger.debug('ID={}'.format(self.id))
-        self.gr = GraphRunner(Traversal=kwargs.get('Traversal'), Entity=self, Logger=self.logger)
+        self.objects = kwargs.get('Objects', {})
+        self.gr = GraphRunner(Traversal=kwargs.get('Traversal'),
+                              Entity=self,
+                              Logger=self.logger,
+                              Objects=self.objects)
         self.rule_order = kwargs.get('RuleOrder', {})
         self.exec_properties = kwargs.get('ExecProperties', [])
         self.exec_logs = {}
@@ -38,6 +42,7 @@ class GraphEntity:
         for prop in node_properties:
             self.__dict__[prop] = node_properties[prop][0]
         self.properties = kwargs.get('Properties') + ['friendly_id',
+                                                      'objects',
                                                       'precode',
                                                       'action']
         self.logger.debug('exec_properties: {}'.format(self.__dict__['exec_properties']))
@@ -95,6 +100,7 @@ class GraphEntity:
         self.logger.debug('ID={}, Properties={}'.format(id, properties))
         entity = cls(Id=id,
                      Traversal=self.g,
+                     Objects=self.objects,
                      NodeProperties=properties,
                      Logger=self.logger)
         self.logger.debug('From node={}'.format(entity.id))
@@ -223,10 +229,10 @@ class GraphEntity:
         done = False
         while not done and not self.is_last_node():
             n = self.next_node_by_rules()
+            if n is None:
+                return None
             if n:
                 return n
-            else:
-                return None, 'Done'
             time.sleep(3)
 
     def next_node_by_rules(self):
@@ -234,6 +240,7 @@ class GraphEntity:
         rules = self.get_all_rules()
         self.logger.debug('Rule Order: {}'.format(self.rule_order))
         self.logger.debug('Rules: {}'.format(rules))
+        ret_val = None
         for rule in self.rule_order:
             rule = rule.upper()
             if rule not in rules:
@@ -255,7 +262,9 @@ class GraphEntity:
                 self.logger.debug('outv: {}'.format(self.g.V(self.id).outE(rule).inV().next().id))
                 node = self.from_node(v.id)
                 self.logger.debug('Returning node: {}'.format(node))
-                return node
+                ret_val = node
+                break
+        return ret_val
 
     def get_property(self, name, id=None):
         self.logger.debug(self.g.V(id).valueMap(False).toList())
