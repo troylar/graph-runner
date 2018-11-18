@@ -105,6 +105,7 @@ class GraphEntity:
         if 'action' not in self.__dict__:
             return
         data = kwargs.get('Data')
+        print('on_action_before')
         self.fire_event('on_action_before')
         if 'precode' in self.__dict__:
             action = '{}\n{}'.format(self.precode, self.action)
@@ -204,6 +205,9 @@ class GraphEntity:
     def get_ruled_edge(self, name):
         return self.g.V(self.id).outE(name)
 
+    def is_last_node(self):
+        return not self.get_all_rules
+
     def get_all_rules(self):
         print('get all edges for {}'.format(self.id))
         edges = self.g.V(self.id).outE().toList()
@@ -211,15 +215,18 @@ class GraphEntity:
         for edge in edges:
             rule = self.g.V(self.id).outE(edge.label).properties('rule').toList()
             if rule:
+                print(edge.label)
                 rules[edge.label] = rule[0].value
         return rules
 
     def wait_for_rule(self, timeout=60):
         done = False
-        while not done:
+        while not done and not self.is_last_node():
             n = self.next_node_by_rules()
             if n:
                 return n
+            else:
+                return None, 'Done'
             time.sleep(3)
 
     def next_node_by_rules(self):
