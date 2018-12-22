@@ -51,6 +51,8 @@ class GraphRunner:
                 val = None
                 if 'exec_val' in locals():
                     val = locals()['exec_val']
+                output = s.getvalue().strip()
+                self.logger.debug('Ouput:\n' + output)
                 return val, s.getvalue().strip()
             except Exception as e:
                 _traceback = traceback.format_exc()
